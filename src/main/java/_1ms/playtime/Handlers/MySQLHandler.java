@@ -1,19 +1,3 @@
-/*      This file is part of the Velocity Playtime project.
-        Copyright (C) 2024-2025 _1ms
-
-        This program is free software: you can redistribute it and/or modify
-        it under the terms of the GNU General Public License as published by
-        the Free Software Foundation, either version 3 of the License, or
-        (at your option) any later version.
-
-        This program is distributed in the hope that it will be useful,
-        but WITHOUT ANY WARRANTY; without even the implied warranty of
-        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-        GNU General Public License for more details.
-
-        You should have received a copy of the GNU General Public License
-        along with this program.  If not, see <https://www.gnu.org/licenses/>. */
-
 package _1ms.playtime.Handlers;
 
 import _1ms.playtime.Main;
@@ -27,14 +11,17 @@ public class MySQLHandler {
 
     private final ConfigHandler configHandler;
     private final Main main;
+
     public MySQLHandler(ConfigHandler configHandler, Main main) {
         this.configHandler = configHandler;
         this.main = main;
     }
 
     public Connection conn;
+
     public boolean openConnection() {
-        final String url = "jdbc:mariadb://" + configHandler.getADDRESS() +":" + configHandler.getPORT() + "/" + configHandler.getDB_NAME() + "?user=" + configHandler.getUSERNAME() + "&password=" + configHandler.getPASSWORD() + "&driver=org.mariadb.jdbc.Driver";
+        final String url = "jdbc:mysql://" + configHandler.getADDRESS() + ":" + configHandler.getPORT() + "/" + configHandler.getDB_NAME()
+                + "?user=" + configHandler.getUSERNAME() + "&password=" + configHandler.getPASSWORD();
         try {
             conn = DriverManager.getConnection(url);
             conn.createStatement().execute("CREATE TABLE IF NOT EXISTS playtimes (name VARCHAR(20) PRIMARY KEY, time BIGINT NOT NULL)");
@@ -46,15 +33,15 @@ public class MySQLHandler {
     }
 
     public void saveData(final String name, final long time) {
-        for(int i = 0; i < 2; i++) {
-            try(PreparedStatement pstmt = conn.prepareStatement("INSERT INTO playtimes (name, time) VALUES (?, ?) ON DUPLICATE KEY UPDATE time = ?")) {
+        for (int i = 0; i < 2; i++) {
+            try (PreparedStatement pstmt = conn.prepareStatement("INSERT INTO playtimes (name, time) VALUES (?, ?) ON DUPLICATE KEY UPDATE time = ?")) {
                 pstmt.setString(1, name);
                 pstmt.setLong(2, time);
                 pstmt.setLong(3, time);
                 pstmt.executeUpdate();
                 break;
             } catch (SQLException e) {
-                if(e instanceof SQLNonTransientConnectionException) { //If the conn was dropped, try to reopen it once.
+                if (e instanceof SQLNonTransientConnectionException) { // If the conn was dropped, try to reopen it once.
                     openConnection();
                     continue;
                 }
@@ -64,16 +51,16 @@ public class MySQLHandler {
     }
 
     public long readData(final String name) {
-        for(int i = 0; i < 2; i++) {
-            try(PreparedStatement pstmt = conn.prepareStatement("SELECT time FROM playtimes WHERE name = ?")) {
+        for (int i = 0; i < 2; i++) {
+            try (PreparedStatement pstmt = conn.prepareStatement("SELECT time FROM playtimes WHERE name = ?")) {
                 pstmt.setString(1, name);
-                try(ResultSet rs = pstmt.executeQuery()) {
-                    if(rs.next())
+                try (ResultSet rs = pstmt.executeQuery()) {
+                    if (rs.next())
                         return rs.getLong("time");
                 }
                 return -1;
             } catch (SQLException e) {
-                if(e instanceof SQLNonTransientConnectionException) {
+                if (e instanceof SQLNonTransientConnectionException) {
                     openConnection();
                     continue;
                 }
@@ -87,34 +74,34 @@ public class MySQLHandler {
     public Iterator<String> getIterator() {
         final Set<String> playtimes = new HashSet<>();
         for (int i = 0; i < 2; i++) {
-            try(ResultSet rs = conn.prepareStatement("SELECT name FROM playtimes").executeQuery()) {
+            try (ResultSet rs = conn.prepareStatement("SELECT name FROM playtimes").executeQuery()) {
                 while (rs.next())
                     playtimes.add(rs.getString("name"));
-                return playtimes.iterator(); //Fill up and then  ret
+                return playtimes.iterator(); // Fill up and then return
             } catch (SQLException e) {
-                if(e instanceof SQLNonTransientConnectionException) {
+                if (e instanceof SQLNonTransientConnectionException) {
                     openConnection();
-                    playtimes.clear(); //CLear leftovers.
+                    playtimes.clear(); // Clear leftovers.
                     continue;
                 }
                 throw new RuntimeException("Error while reading data from the database", e);
             }
         }
-        main.getLogger().error("DB IT error - Invalid state."); //Should never reach here?
+        main.getLogger().error("DB IT error - Invalid state."); // Should never reach here?
         return null;
     }
 
     public void deleteAll() {
-        for(int i = 0; i < 2; i++) {
-            try(PreparedStatement pstmt = conn.prepareStatement("DELETE FROM playtimes")) {
+        for (int i = 0; i < 2; i++) {
+            try (PreparedStatement pstmt = conn.prepareStatement("DELETE FROM playtimes")) {
                 pstmt.executeUpdate();
                 break;
             } catch (SQLException e) {
-                if(e instanceof SQLNonTransientConnectionException) {
+                if (e instanceof SQLNonTransientConnectionException) {
                     openConnection();
                     continue;
                 }
-                throw new RuntimeException("Error while saving data into the database",e);
+                throw new RuntimeException("Error while saving data into the database", e);
             }
         }
     }
